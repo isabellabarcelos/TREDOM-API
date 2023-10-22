@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User
+from .models import User, Patient, HealthProfessional
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,5 +14,27 @@ class UserSerializer(serializers.ModelSerializer):
         instance = self.Meta.model(**validated_data)
         if password is not None:
             instance.set_password(password)
+        instance.save()
+        return instance
+    
+
+
+class PatientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Patient
+        fields = '__all__'
+    
+    def create(self, validated_data):
+        instance = self.Meta.model(**validated_data)
+        instance.save()
+        return instance
+    
+
+class HealthProfessionalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HealthProfessional
+        fields = '__all__'
+    def create(self, validated_data):
+        instance = self.Meta.model(**validated_data)
         instance.save()
         return instance

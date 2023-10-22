@@ -80,10 +80,10 @@ WSGI_APPLICATION = 'TREDOM_API.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'iptwgrug',
-        'USER': 'iptwgrug',
-        'PASSWORD': 'QyAu8LwaXaew5WcHel17C_Yo1rLPCaFb',
-        'HOST': 'silly.db.elephantsql.com',
+        'NAME': 'jrhmrcze',
+        'USER': 'jrhmrcze',
+        'PASSWORD': 'pwszwSe9iNxRE0HndRS_oIRbWBWmko1v',
+        'HOST': 'motty.db.elephantsql.com',
         'PORT': '5432'
     }
 }
