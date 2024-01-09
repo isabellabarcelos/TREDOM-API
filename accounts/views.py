@@ -1,18 +1,104 @@
+import re  # Importando o módulo de expressões regulares
 from .serializers import UserSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import AuthenticationFailed
 from .models import User
 import jwt, datetime
+from rest_framework import status
+
 
 # Create your views here.
 
-class RegisterView(APIView):
+from rest_framework import serializers
+from .models import User  # Assuming you have a User model
+    
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from .models import User, Patient, Professional
+from .serializers import UserSerializer, ProfessionalSerializer, PatientSerializer
+from django.contrib.auth.hashers import make_password
+
+class FinalizeRegistrationView(APIView):
     def post(self, request):
-        serializer = UserSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+         
+        if request.data['profileType'] == 'Paciente':
+            serializer = PatientSerializer(data=request.data)
+        elif request.data['profileType'] == 'Profissional da Saúde':
+            serializer = ProfessionalSerializer(data=request.data)
+
+        if serializer.is_valid():
+            user_data = serializer.validated_data
+            profile_type = user_data.get('profileType')
+            
+            # Salvando o usuário
+            user = User.objects.create(
+                email=user_data['email'],
+                password= make_password(user_data['password']),
+                profileType=profile_type
+            )
+            
+            # Lógica para salvar informações adicionais com base no tipo de perfil
+            if profile_type == 'Paciente':
+                Patient.objects.create(
+                    user=user,
+                    fullName=user_data.get('fullName'),
+                    date=user_data.get('date'),
+                    city=user_data.get('city'),
+                    phone=user_data.get('phone'),
+                    gender=user_data.get('gender')
+                )
+            elif profile_type == 'Profissional da Saúde':
+                Professional.objects.create(
+                    user=user,
+                    fullName=user_data.get('fullName'),
+                    date=user_data.get('date'),
+                    city=user_data.get('city'),
+                    medicalregister=user_data.get('medicalregister'),
+                    medicalspecialty=user_data.get('medicalspecialty')
+                )
+            
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            errors = serializer.errors
+            error_message = "Validation failed. Please check your input data."
+            if errors:
+                error_message = "\n".join([f"{field}: {error[0]}" for field, error in errors.items()])
+            
+            return Response({"message": error_message}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+class FirstStepRegistrationView(APIView):
+    def post(self, request):
+        # Retrieving data from the POST request
+        profile_type = request.data.get('profileType')
+        email = request.data.get('email')
+        password = request.data.get('password')
+        confirm_password = request.data.get('confirmPassword')
+        full_name = request.data.get('fullName')
+
+        # Fields validation
+        if not (profile_type and email and password and confirm_password and full_name):
+            return Response({'message': 'All fields are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if password != confirm_password:
+            return Response({'message': 'Passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Email format validation using regex
+        email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+        if not re.match(email_regex, email):
+            return Response({'message': 'Invalid email format.'}, status=status.HTTP_400_BAD_REQUEST)
+      
+        if User.objects.filter(email=email).exists():
+          return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # If all fields are correct, proceed to the next step
+        # You can redirect to the next route or return a status indicating that the first step was successfully completed
+        return Response({'message': 'First step completed successfully. Next step: Finalize Registration.'}, status=status.HTTP_200_OK)
+
 
 class LoginView(APIView):
     def post(self, request):
@@ -21,11 +107,8 @@ class LoginView(APIView):
 
       user = User.objects.filter(email=email).first()
 
-      if user is None:
-         raise AuthenticationFailed('User not found!')
-      
-      if not user.check_password(password):
-         raise AuthenticationFailed('Incorrect password!')
+      if (user is None) or (not user.check_password(password)):
+        return Response({'message': 'Credenciais inválidas.'}, status=status.HTTP_400_BAD_REQUEST)
       
       payload = {
          'id': user.id,
