@@ -62,9 +62,9 @@ class FinalizeRegistrationView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             errors = serializer.errors
-            error_message = "Validation failed. Please check your input data."
             if errors:
-                error_message = "\n".join([f"{field}: {error[0]}" for field, error in errors.items()])
+                first_error_field, first_error_message = next(iter(errors.items()))
+                error_message = f"{first_error_field}: {first_error_message[0]}"
             
             return Response({"message": error_message}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -87,17 +87,26 @@ class FirstStepRegistrationView(APIView):
         if password != confirm_password:
             return Response({'message': 'Passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Password validation: at least 8 characters, 1 uppercase letter, and 1 digit
+        if not (len(password) >= 8 and any(c.isupper() for c in password) and any(c.isdigit() for c in password)):
+            return Response({'message': 'Password must contain at least 8 characters, 1 uppercase letter, and 1 digit.'}, status=status.HTTP_400_BAD_REQUEST)
+
         # Email format validation using regex
         email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
         if not re.match(email_regex, email):
             return Response({'message': 'Invalid email format.'}, status=status.HTTP_400_BAD_REQUEST)
       
         if User.objects.filter(email=email).exists():
-          return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Name validation: only letters
+        if not full_name.replace(' ', '').isalpha():
+            return Response({'message': 'Name must contain only letters.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # If all fields are correct, proceed to the next step
         # You can redirect to the next route or return a status indicating that the first step was successfully completed
         return Response({'message': 'First step completed successfully. Next step: Finalize Registration.'}, status=status.HTTP_200_OK)
+
 
 
 class LoginView(APIView):
