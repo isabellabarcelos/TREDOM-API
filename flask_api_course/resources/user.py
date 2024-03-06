@@ -13,7 +13,7 @@ from passlib.hash import pbkdf2_sha256
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
 from models import UserModel, Patient, HealthProfessional
-from schemas import PatientSchema, HealthProfessionalSchema, UserAndProfileSchema, UserSchema
+from schemas import UserAndProfileSchema, UserSchema, UserValidateSchema
 # from rq import Queue
 
 # from tasks import send_user_registration_email
@@ -29,10 +29,9 @@ blp = Blueprint("Users", "users", description="Operations on users")
 # )  # Get this from Render.com or run in Docker
 # queue = Queue("emails", connection=connection)
 
-
-@blp.route("/register")
-class UserRegister(MethodView):
-    @blp.arguments(UserAndProfileSchema)
+@blp.route("/init-register")
+class UserValidate(MethodView):
+    @blp.arguments(UserValidateSchema)
     def post(self, user_data):
         profile_type = user_data.get("profile_type")
 
@@ -41,14 +40,24 @@ class UserRegister(MethodView):
 
         if UserModel.query.filter(UserModel.email == user_data["email"]).first():
             abort(409, message="A user with that email already exists.")
+        
+        if user_data.get("password") != user_data.get("confirm_password"):
+             abort(400, message="Password and confirm password do not match.")
+        
+        return {"message": "Valid user data."}, 200
 
+
+
+@blp.route("/finish-register")
+class UserRegister(MethodView):
+    @blp.arguments(UserAndProfileSchema)
+    def post(self, user_data):
+        profile_type = user_data.get("profile_type")
         password_hash = pbkdf2_sha256.hash(user_data["password"])
-
         try:
             user = UserModel(email=user_data["email"], password=password_hash)
             db.session.add(user)
             db.session.commit()
-            print(user_data)
             if profile_type == "patient":
                 patient = Patient(
                     user_id=user.id,
@@ -107,23 +116,22 @@ class UserLogout(MethodView):
         BLOCKLIST.add(jti)
         return {"message": "Successfully logged out"}, 200
 
-
 @blp.route("/user/<int:user_id>")
 class User(MethodView):
 
+    @jwt_required()
     @blp.response(200, UserAndProfileSchema)
     def get(self, user_id):
         user = UserModel.query.get_or_404(user_id)
         return user
     
+    @jwt_required()
     @blp.arguments(UserAndProfileSchema)
     def put(self, user_data, user_id):
         user = UserModel.query.get_or_404(user_id)
-        # Atualizar os dados do usuário com os dados fornecidos na requisição
         user.email = user_data.get('email', user.email)
         user.password = user_data.get('password', user.password)
 
-        # Se o perfil do usuário for "patient", atualize os dados do paciente
         if Patient.query.filter_by(user_id=user_id).first():
             patient_data = user_data.get('patient', {})
             patient = Patient.query.filter_by(user_id=user_id).first()
@@ -136,7 +144,7 @@ class User(MethodView):
                 patient.race = patient_data.get('race', patient.race)
                 patient.height = patient_data.get('height', patient.height)
 
-        # Se o perfil do usuário for "health_professional", atualize os dados do profissional de saúde
+
         elif HealthProfessional.query.filter_by(user_id=user_id).first():
             health_professional_data = user_data.get('health_professional', {})
             health_professional = HealthProfessional.query.filter_by(user_id=user_id).first()
@@ -147,12 +155,11 @@ class User(MethodView):
                 health_professional.gender = health_professional_data.get('gender', health_professional.gender)
                 health_professional.medical_register = health_professional_data.get('medical_register', health_professional.medical_register)
 
-        # Confirmar as alterações no banco de dados
         db.session.commit()
 
         return {"message": "User updated successfully."}, 200
     
-    
+    @jwt_required()
     def delete(self, user_id):
         user = UserModel.query.get_or_404(user_id)
         
@@ -175,7 +182,6 @@ class TokenRefresh(MethodView):
     def post(self):
         current_user = get_jwt_identity()
         new_token = create_access_token(identity=current_user, fresh=False)
-        # Make it clear that when to add the refresh token to the blocklist will depend on the app design
         jti = get_jwt()["jti"]
         BLOCKLIST.add(jti)
         return {"access_token": new_token}, 200

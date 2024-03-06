@@ -71,6 +71,14 @@ class UserRegisterSchema(Schema):
     
 class UserAndProfileSchema(Schema):
     email = fields.Str(required=True)
+    profile_type = fields.Str(validate=validate.OneOf(["patient", "professional"]))
     password = fields.Str(required=True, validate=validate.Length(min=6))
     patient = fields.Nested(PatientSchema, allow_none=True)
     health_professional = fields.Nested(HealthProfessionalSchema, allow_none=True)
+
+class UserValidateSchema(Schema):
+    email = fields.Str(required=True, validate=validate.Email())
+    name = fields.Str(required=True)
+    password = fields.Str(required=True, validate=validate.Length(min=6))
+    confirm_password = fields.Str(required=True, validate=validate.Length(min=6))
+    profile_type = fields.Str(required=True, validate=validate.OneOf(["patient", "professional"]))
