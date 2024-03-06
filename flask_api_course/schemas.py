@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, validate
 
 
 class PlainItemSchema(Schema):
@@ -45,11 +45,35 @@ class TagAndItemSchema(Schema):
     tag = fields.Nested(TagSchema)
 
 
+
+class PatientSchema(Schema):
+    name = fields.Str(required=True)
+    birthday = fields.Date(required=True)
+    location = fields.Str(required=True)
+    gender = fields.Str(required=True)
+    weight = fields.Decimal(required=True)
+    race = fields.Str(required=True)
+    height = fields.Decimal(required=True)
+
+class HealthProfessionalSchema(Schema):
+    name = fields.Str(required=True)
+    birthday = fields.Date(required=True)
+    location = fields.Str(required=True)
+    gender = fields.Str(required=True)
+    medical_register = fields.Str(required=True)
+    
 class UserSchema(Schema):
     id = fields.Int(dump_only=True)
     username = fields.Str(required=True)
     password = fields.Str(required=True, load_only=True)
 
-
-class UserRegisterSchema(UserSchema):
+class UserRegisterSchema(Schema):
     email = fields.Str(required=True)
+    password = fields.Str(required=True, validate=validate.Length(min=6))
+    
+class UserAndProfileSchema(Schema):
+    email = fields.Str(required=True)
+    password = fields.Str(required=True, validate=validate.Length(min=6))
+    profile_type = fields.Str(required=True, validate=validate.OneOf(["patient", "professional"]))
+    patient = fields.Nested(PatientSchema, required=False)
+    health_professional = fields.Nested(HealthProfessionalSchema, required=False)
