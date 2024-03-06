@@ -116,6 +116,42 @@ class User(MethodView):
         user = UserModel.query.get_or_404(user_id)
         return user
     
+    @blp.arguments(UserAndProfileSchema)
+    def put(self, user_data, user_id):
+        user = UserModel.query.get_or_404(user_id)
+        # Atualizar os dados do usuário com os dados fornecidos na requisição
+        user.email = user_data.get('email', user.email)
+        user.password = user_data.get('password', user.password)
+
+        # Se o perfil do usuário for "patient", atualize os dados do paciente
+        if Patient.query.filter_by(user_id=user_id).first():
+            patient_data = user_data.get('patient', {})
+            patient = Patient.query.filter_by(user_id=user_id).first()
+            if patient:
+                patient.name = patient_data.get('name', patient.name)
+                patient.birthday = patient_data.get('birthday', patient.birthday)
+                patient.location = patient_data.get('location', patient.location)
+                patient.gender = patient_data.get('gender', patient.gender)
+                patient.weight = patient_data.get('weight', patient.weight)
+                patient.race = patient_data.get('race', patient.race)
+                patient.height = patient_data.get('height', patient.height)
+
+        # Se o perfil do usuário for "health_professional", atualize os dados do profissional de saúde
+        elif HealthProfessional.query.filter_by(user_id=user_id).first():
+            health_professional_data = user_data.get('health_professional', {})
+            health_professional = HealthProfessional.query.filter_by(user_id=user_id).first()
+            if health_professional:
+                health_professional.name = health_professional_data.get('name', health_professional.name)
+                health_professional.birthday = health_professional_data.get('birthday', health_professional.birthday)
+                health_professional.location = health_professional_data.get('location', health_professional.location)
+                health_professional.gender = health_professional_data.get('gender', health_professional.gender)
+                health_professional.medical_register = health_professional_data.get('medical_register', health_professional.medical_register)
+
+        # Confirmar as alterações no banco de dados
+        db.session.commit()
+
+        return {"message": "User updated successfully."}, 200
+    
     
     def delete(self, user_id):
         user = UserModel.query.get_or_404(user_id)

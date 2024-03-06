@@ -44,8 +44,6 @@ class TagAndItemSchema(Schema):
     item = fields.Nested(ItemSchema)
     tag = fields.Nested(TagSchema)
 
-
-
 class PatientSchema(Schema):
     name = fields.Str(required=True)
     birthday = fields.Date(required=True)
@@ -61,7 +59,7 @@ class HealthProfessionalSchema(Schema):
     location = fields.Str(required=True)
     gender = fields.Str(required=True)
     medical_register = fields.Str(required=True)
-    
+
 class UserSchema(Schema):
     id = fields.Int(dump_only=True)
     username = fields.Str(required=True)
@@ -74,6 +72,5 @@ class UserRegisterSchema(Schema):
 class UserAndProfileSchema(Schema):
     email = fields.Str(required=True)
     password = fields.Str(required=True, validate=validate.Length(min=6))
-    profile_type = fields.Str(required=True, validate=validate.OneOf(["patient", "professional"]))
-    patient = fields.Nested(PatientSchema, required=False)
-    health_professional = fields.Nested(HealthProfessionalSchema, required=False)
+    patient = fields.Nested(PatientSchema, allow_none=True)
+    health_professional = fields.Nested(HealthProfessionalSchema, allow_none=True)
