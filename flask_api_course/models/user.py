@@ -8,6 +8,17 @@ class UserModel(db.Model):
     email = db.Column(db.String, unique=True, nullable=False)
     password = db.Column(db.String(256), unique=False, nullable=False)
 
+    sent_requests = db.relationship('PendingRequestModel',
+                                    foreign_keys='PendingRequestModel.sender_id',
+                                    backref='sender_user',
+                                    lazy='dynamic')
+
+    # Relacionamento para pedidos recebidos
+    received_requests = db.relationship('PendingRequestModel',
+                                        foreign_keys='PendingRequestModel.receiver_id',
+                                        backref='receiver_user',
+                                        lazy='dynamic')
+
 class Patient(db.Model):
     __tablename__ = "patients"
 
@@ -18,9 +29,6 @@ class Patient(db.Model):
     birthday = db.Column(db.Date, nullable=False)
     location = db.Column(db.String(255), nullable=False)
     gender = db.Column(db.String(20), nullable=False)
-    weight = db.Column(db.Numeric(5, 2), nullable=False)
-    race = db.Column(db.String(20), nullable=False)
-    height = db.Column(db.Numeric(5, 2), nullable=False)
 
 class HealthProfessional(db.Model):
     __tablename__ = "health_professionals"
@@ -31,5 +39,5 @@ class HealthProfessional(db.Model):
     name = db.Column(db.String(255), nullable=False)
     birthday = db.Column(db.Date, nullable=False)
     location = db.Column(db.String(255), nullable=False)
-    gender = db.Column(db.String(20), nullable=False)
+    specialization = db.Column(db.String(20), nullable=False)
     medical_register = db.Column(db.String(20), nullable=False)

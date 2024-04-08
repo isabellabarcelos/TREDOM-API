@@ -62,7 +62,7 @@ class HealthProfessionalSchema(Schema):
 
 class UserSchema(Schema):
     id = fields.Int(dump_only=True)
-    username = fields.Str(required=True)
+    email = fields.Str(required=True)
     password = fields.Str(required=True, load_only=True)
 
 class UserRegisterSchema(Schema):
@@ -82,3 +82,9 @@ class UserValidateSchema(Schema):
     password = fields.Str(required=True, validate=validate.Length(min=6))
     confirm_password = fields.Str(required=True, validate=validate.Length(min=6))
     profile_type = fields.Str(required=True, validate=validate.OneOf(["patient", "professional"]))
+
+class SendRequestSchema(Schema):
+    email = fields.Str(required=True, validate=validate.Email())
+
+class IdSchema(Schema):
+    id = fields.Int(dump_only=True)

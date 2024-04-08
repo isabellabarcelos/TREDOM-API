@@ -1,6 +1,8 @@
 # import os
 # import redis
+import re
 from flask.views import MethodView
+from flask import request
 from flask_smorest import Blueprint, abort
 from flask_jwt_extended import (
     create_access_token,
@@ -13,7 +15,7 @@ from passlib.hash import pbkdf2_sha256
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
 from models import UserModel, Patient, HealthProfessional
-from schemas import UserAndProfileSchema, UserSchema, UserValidateSchema
+from schemas import UserAndProfileSchema, UserValidateSchema
 # from rq import Queue
 
 # from tasks import send_user_registration_email
@@ -31,15 +33,24 @@ blp = Blueprint("Users", "users", description="Operations on users")
 
 @blp.route("/init-register")
 class UserValidate(MethodView):
-    @blp.arguments(UserValidateSchema)
-    def post(self, user_data):
+    def post(self):
+        user_data = request.json
         profile_type = user_data.get("profile_type")
 
+        if any(value == "" for value in user_data.values()):
+            abort(400, message="All fields are required.")
+
+        if not re.match(r'^[\w\.-]+@[\w\.-]+(\.\w{2,})+$', user_data["email"]):
+            abort(400, message="Invalid email format.")
+        
         if profile_type not in ["patient", "professional"]:
             abort(400, message="Invalid profile type. It should be 'patient' or 'professional'.")
 
         if UserModel.query.filter(UserModel.email == user_data["email"]).first():
             abort(409, message="A user with that email already exists.")
+        
+        if len(user_data["password"]) < 6:
+            abort(400, message="Password must be at least 6 characters long.")
         
         if user_data.get("password") != user_data.get("confirm_password"):
              abort(400, message="Password and confirm password do not match.")
@@ -50,10 +61,20 @@ class UserValidate(MethodView):
 
 @blp.route("/finish-register")
 class UserRegister(MethodView):
-    @blp.arguments(UserAndProfileSchema)
-    def post(self, user_data):
+    def post(self):
+        user_data = request.json
         profile_type = user_data.get("profile_type")
         password_hash = pbkdf2_sha256.hash(user_data["password"])
+
+        if any(value == "" for value in user_data.values()):
+            abort(400, message="All fields are required.")
+        if profile_type == 'patient':
+            if any(value == "" for value in user_data["patient"].values()):
+                abort(400, message="All fields are required.")
+        if profile_type == 'professional':
+            if any(value == "" for value in user_data["professional"].values()):
+                abort(400, message="All fields are required.")
+            
         try:
             user = UserModel(email=user_data["email"], password=password_hash)
             db.session.add(user)
@@ -65,19 +86,17 @@ class UserRegister(MethodView):
                     birthday=user_data["patient"]["birthday"],
                     location=user_data["patient"]["location"],
                     gender=user_data["patient"]["gender"],
-                    weight=user_data["patient"]["weight"],
-                    race=user_data["patient"]["race"],
-                    height=user_data["patient"]["height"]
                 )
                 db.session.add(patient)
             else:
+                print(user_data)
                 health_professional = HealthProfessional(
                     user_id=user.id,
-                    name=user_data["patient"]["name"],
-                    birthday=user_data["patient"]["birthday"],
-                    location=user_data["patient"]["location"],
-                    gender=user_data["patient"]["gender"],
-                    medical_register=user_data["patient"]["medical_register"]
+                    name=user_data["professional"]["name"],
+                    birthday=user_data["professional"]["birthday"],
+                    location=user_data["professional"]["location"],
+                    specialization=user_data["professional"]["specialization"],
+                    medical_register=user_data["professional"]["medical_register"]
                 )
                 db.session.add(health_professional)
 
@@ -94,11 +113,14 @@ class UserRegister(MethodView):
 
 @blp.route("/login")
 class UserLogin(MethodView):
-    @blp.arguments(UserSchema)
-    def post(self, user_data):
+    def post(self):
+        user_data = request.json
         user = UserModel.query.filter(
             UserModel.email == user_data["email"]
         ).first()
+
+        if not re.match(r'^[\w\.-]+@[\w\.-]+(\.\w{2,})+$', user_data["email"]):
+            abort(400, message="Invalid email format.")
 
         if user and pbkdf2_sha256.verify(user_data["password"], user.password):
             access_token = create_access_token(identity=user.id, fresh=True)

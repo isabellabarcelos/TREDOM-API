@@ -4,6 +4,7 @@ from flask_smorest import Api
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
 from dotenv import load_dotenv
+from flask_cors import CORS
 
 from db import db
 from blocklist import BLOCKLIST
@@ -12,10 +13,15 @@ from resources.user import blp as UserBlueprint
 from resources.item import blp as ItemBlueprint
 from resources.store import blp as StoreBlueprint
 from resources.tag import blp as TagBlueprint
+from resources.relation_request import blp as RelationRequestBlueprint
+from resources.my_patients import blp as MyPatientsBlueprint
+
+
 
 
 def create_app(db_url=None):
     app = Flask(__name__)
+    CORS(app) 
     load_dotenv()
     app.config["API_TITLE"] = "Stores REST API"
     app.config["API_VERSION"] = "v1"
@@ -109,5 +115,7 @@ def create_app(db_url=None):
     api.register_blueprint(ItemBlueprint)
     api.register_blueprint(StoreBlueprint)
     api.register_blueprint(TagBlueprint)
+    api.register_blueprint(RelationRequestBlueprint)
+    api.register_blueprint(MyPatientsBlueprint)
 
     return app
