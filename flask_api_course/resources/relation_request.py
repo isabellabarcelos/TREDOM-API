@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from db import db
 from flask import request
 import re
+import json
 blp = Blueprint("Relation Request", "relation and requests", description="Operations on relation and requests")
 
 @blp.route("/request")
@@ -31,9 +32,6 @@ class RequestResource(MethodView):
         patient = Patient.query.filter_by(user_id=patient_user.id).first()
 
         if patient:
-            print("oi")
-            print(professional_user)
-            print(patient_user)
             existing_request = PendingRequestModel.query.filter_by(sender_id=professional_user.id, receiver_id=patient_user.id).first()
             if existing_request:
                 abort(400, message='Relationship already exists.')
@@ -50,14 +48,17 @@ class RequestResource(MethodView):
         current_user = get_jwt_identity()
         professional = HealthProfessional.query.filter_by(user_id=current_user).first()
         if professional:
-            patients = [req.patient.user.to_dict() for req in PendingRequestModel.query.filter_by(professional_id=professional.id).all()]
-            return {'patients': patients}, 200
+            patient_ids = [req.receiver_id for req in PendingRequestModel.query.filter_by(sender_id=current_user).all()]
+            patients = Patient.query.filter(Patient.id.in_(patient_ids)).all()
+            patients_info = [{"id": patient.id, "user_id": patient.user_id, "name": patient.name, "email": patient.email, "birthday": str(patient.birthday), "location": patient.location, "gender": patient.gender} for patient in patients]
+            return {'patients': patients_info}, 200
         
         patient = Patient.query.filter_by(user_id=current_user).first()
         if patient:
-            professionals = [req.professional.user.to_dict() for req in PendingRequestModel.query.filter_by(patient_id=patient.id).all()]
-            return {'professionals': professionals}, 200
-        abort(404, message='User not found or not authorized')
+            professional_ids = [req.sender_id for req in PendingRequestModel.query.filter_by(receiver_id=current_user).all()]
+            professionals = HealthProfessional.query.filter(HealthProfessional.id.in_(professional_ids)).all()
+            professionals_info = [{"id": prof.id, "name": prof.name, "email": prof.email,"specialization": prof.specialization, "location": prof.location, "medical_register": prof.medical_register} for prof in professionals]
+            return {'professionals': professionals_info}, 200
 
     @jwt_required()
     @blp.arguments(IdSchema)
@@ -90,8 +91,8 @@ class RequestResource(MethodView):
 @blp.route("/relation")
 class RelationResource(MethodView):
     @jwt_required()
-    @blp.arguments(IdSchema)
-    def post(self, request_data):
+    def post(self):
+        request_data = request.json
         current_user = get_jwt_identity()
         
         patient = Patient.query.filter_by(user_id=current_user).first()
@@ -99,7 +100,7 @@ class RelationResource(MethodView):
             abort(403, message='User is not a patient')
 
         professional_id = request_data.get('professional_id')
-        pending_request = PendingRequestModel.query.filter_by(professional_id=professional_id, patient_id=current_user).first()
+        pending_request = PendingRequestModel.query.filter_by(sender_id=professional_id, receiver_id=current_user).first()
         if pending_request:
             new_relation = PatientProfessionalRelationModel(professional_id=professional_id, patient_id=current_user)
             db.session.add(new_relation)
@@ -113,8 +114,26 @@ class RelationResource(MethodView):
             abort(404, message='Request does not exist ')
 
     @jwt_required()
-    @blp.arguments(IdSchema)
-    def delete(self, request_data):
+    def get(self):
+        current_user = get_jwt_identity()
+        professional = HealthProfessional.query.filter_by(user_id=current_user).first()
+        if professional:
+            patient_ids = [req.professional_id for req in PatientProfessionalRelationModel.query.filter_by(professional_id=current_user).all()]
+            patients = Patient.query.filter(Patient.id.in_(patient_ids)).all()
+            patients_info = [{"id": patient.id, "user_id": patient.user_id, "name": patient.name, "email": patient.email, "birthday": str(patient.birthday), "location": patient.location, "gender": patient.gender} for patient in patients]
+            return {'patients': patients_info}, 200
+        
+        patient = Patient.query.filter_by(user_id=current_user).first()
+        if patient:
+            professional_ids = [req.patient_id for req in PatientProfessionalRelationModel.query.filter_by(patient_id=current_user).all()]
+            professionals = HealthProfessional.query.filter(HealthProfessional.id.in_(professional_ids)).all()
+            professionals_info = [{"id": prof.id, "name": prof.name, "email": prof.email,"specialization": prof.specialization, "location": prof.location, "medical_register": prof.medical_register} for prof in professionals]
+            return {'professionals': professionals_info}, 200
+    
+
+    @jwt_required()
+    def delete(self):
+        request_data = request.json
         current_user = get_jwt_identity()
         
         patient = Patient.query.filter_by(user_id=current_user).first()

@@ -83,6 +83,7 @@ class UserRegister(MethodView):
                 patient = Patient(
                     user_id=user.id,
                     name=user_data["patient"]["name"],
+                    email= user_data["email"],
                     birthday=user_data["patient"]["birthday"],
                     location=user_data["patient"]["location"],
                     gender=user_data["patient"]["gender"],
@@ -93,6 +94,7 @@ class UserRegister(MethodView):
                 health_professional = HealthProfessional(
                     user_id=user.id,
                     name=user_data["professional"]["name"],
+                    email= user_data["email"],
                     birthday=user_data["professional"]["birthday"],
                     location=user_data["professional"]["location"],
                     specialization=user_data["professional"]["specialization"],
@@ -159,6 +161,7 @@ class User(MethodView):
             patient = Patient.query.filter_by(user_id=user_id).first()
             if patient:
                 patient.name = patient_data.get('name', patient.name)
+                patient.email = patient_data.get('email', patient.email)
                 patient.birthday = patient_data.get('birthday', patient.birthday)
                 patient.location = patient_data.get('location', patient.location)
                 patient.gender = patient_data.get('gender', patient.gender)
@@ -172,6 +175,7 @@ class User(MethodView):
             health_professional = HealthProfessional.query.filter_by(user_id=user_id).first()
             if health_professional:
                 health_professional.name = health_professional_data.get('name', health_professional.name)
+                health_professional.email = health_professional_data.get('email', health_professional.email)
                 health_professional.birthday = health_professional_data.get('birthday', health_professional.birthday)
                 health_professional.location = health_professional_data.get('location', health_professional.location)
                 health_professional.gender = health_professional_data.get('gender', health_professional.gender)
