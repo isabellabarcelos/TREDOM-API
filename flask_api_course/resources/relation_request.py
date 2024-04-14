@@ -62,13 +62,13 @@ class RequestResource(MethodView):
             return {'professionals': professionals_info}, 200
 
     @jwt_required()
-    @blp.arguments(IdSchema)
-    def delete(self, request_data):
+    def delete(self):
+        request_data = request.json
         current_user = get_jwt_identity()
 
         professional_user = HealthProfessional.query.filter_by(user_id=current_user).first()
         if professional_user:
-            pending_request = PendingRequestModel.query.filter_by(professional_id=professional_user.user_id, patient_id=request_data['id']).first()
+            pending_request = PendingRequestModel.query.filter_by(sender_id=professional_user.user_id, receiver_id=request_data['id']).first()
             if pending_request:
                 db.session.delete(pending_request)
                 db.session.commit()
@@ -78,7 +78,7 @@ class RequestResource(MethodView):
 
         patient_user = Patient.query.filter_by(user_id=current_user).first()
         if patient_user:
-            pending_request = PendingRequestModel.query.filter_by(patient_id=patient_user.user_id, professional_id=request_data['id']).first()
+            pending_request = PendingRequestModel.query.filter_by(receiver_id=patient_user.user_id, sender_id=request_data['id']).first()
             if pending_request:
                 db.session.delete(pending_request)
                 db.session.commit()
@@ -138,10 +138,11 @@ class RelationResource(MethodView):
         current_user = get_jwt_identity()
         
         patient = Patient.query.filter_by(user_id=current_user).first()
-        if not patient:
-            abort(403, message='User is not a patient')
+        if patient:
+            relation = PatientProfessionalRelationModel.query.filter_by(professional_id=request_data['id'], patient_id=current_user).first()
 
-        relation = PatientProfessionalRelationModel.query.filter_by(professional_id=request_data['id'], patient_id=current_user).first()
+        else:
+            relation = PatientProfessionalRelationModel.query.filter_by(professional_id=current_user, patient_id=request_data['id']).first()
         if not relation:
             abort(404, message='Relation does not exist')
 
