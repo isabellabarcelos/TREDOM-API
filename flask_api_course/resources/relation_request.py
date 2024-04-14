@@ -49,14 +49,15 @@ class RequestResource(MethodView):
         professional = HealthProfessional.query.filter_by(user_id=current_user).first()
         if professional:
             patient_ids = [req.receiver_id for req in PendingRequestModel.query.filter_by(sender_id=current_user).all()]
-            patients = Patient.query.filter(Patient.id.in_(patient_ids)).all()
+            patients = Patient.query.filter(Patient.user_id.in_(patient_ids)).all()
+            print(patients)
             patients_info = [{"id": patient.id, "user_id": patient.user_id, "name": patient.name, "email": patient.email, "birthday": str(patient.birthday), "location": patient.location, "gender": patient.gender} for patient in patients]
             return {'patients': patients_info}, 200
         
         patient = Patient.query.filter_by(user_id=current_user).first()
         if patient:
             professional_ids = [req.sender_id for req in PendingRequestModel.query.filter_by(receiver_id=current_user).all()]
-            professionals = HealthProfessional.query.filter(HealthProfessional.id.in_(professional_ids)).all()
+            professionals = HealthProfessional.query.filter(HealthProfessional.user_id.in_(professional_ids)).all()
             professionals_info = [{"id": prof.id, "name": prof.name, "email": prof.email,"specialization": prof.specialization, "location": prof.location, "medical_register": prof.medical_register} for prof in professionals]
             return {'professionals': professionals_info}, 200
 
